@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Dorking Search</title>
+  <style>
+    body {
+      background: #181818;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0; /* Remove default body margin */
+      padding: 20px 0; /* Add some padding for very small screens */
+      box-sizing: border-box; /* Ensures padding doesn't add to width/height */
+    }
+
+    h1 {
+      color: #00e676;
+      margin-top: 20px; /* Reduced margin for smaller screens */
+      margin-bottom: 20px;
+      font-size: 1.8em; /* Slightly smaller for better fit */
+      text-align: center; /* Center heading text */
+    }
+
+    .container {
+      background: #232323;
+      padding: 20px; /* Reduced padding for smaller screens */
+      border-radius: 15px;
+      margin-top: 20px; /* Reduced margin */
+      box-shadow: 0 2px 12px #0006;
+      width: 90%; /* Make it responsive */
+      max-width: 500px; /* Set a max-width for larger screens */
+      box-sizing: border-box;
+    }
+
+    label {
+      display: block;
+      margin-top: 15px; /* Slightly reduced margin */
+      font-size: 1em; /* Adjusted font size */
+    }
+
+    input[type="text"],
+    select {
+      width: 100%; /* Make inputs/selects take full width of container */
+      padding: 10px;
+      margin-top: 5px;
+      border-radius: 6px;
+      border: none;
+      font-size: 16px;
+      box-sizing: border-box; /* Include padding and border in the element's total width and height */
+    }
+
+    select[multiple] {
+      height: 90px;
+    }
+
+    button {
+      margin-top: 25px;
+      padding: 12px 20px; /* Adjusted padding */
+      border: none;
+      background: #00e676;
+      color: #181818;
+      border-radius: 6px;
+      font-size: 16px; /* Adjusted font size */
+      cursor: pointer;
+      width: 100%; /* Make button full width on small screens */
+    }
+
+    button:hover {
+      background: #00b859;
+    }
+
+    .note {
+      margin-top: 25px; /* Reduced margin */
+      color: #aaa;
+      font-size: 0.9em; /* Adjusted font size */
+      text-align: center; /* Center note text */
+      width: 90%;
+      max-width: 500px;
+      box-sizing: border-box;
+    }
+
+    /* Media Query for larger screens (e.g., tablets and desktops) */
+    @media (min-width: 600px) {
+      h1 {
+        font-size: 2.2em; /* Restore or slightly increase original font size */
+        margin-top: 40px;
+      }
+      .container {
+        padding: 30px 40px; /* Restore original padding */
+        margin-top: 30px;
+      }
+      label {
+        font-size: 1.1em; /* Restore original font size */
+      }
+      button {
+        width: auto; /* Allow button to size based on content */
+        padding: 12px 30px; /* Restore original padding */
+        font-size: 17px; /* Restore original font size */
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Smart Dorking Search Tool</h1>
+  <div class="container">
+    <form id="dorkForm">
+      <label for="keyword">Search Keyword:</label>
+      <input type="text" id="keyword" placeholder="e.g. Harry Potter, Coldplay, Avengers" required>
+
+      <label for="site">Site (optional):</label>
+      <input type="text" id="site" placeholder="e.g. archive.org, edu, gov.in">
+
+      <label for="category">Category:</label>
+      <select id="category" required>
+        <option value="">-- Select Category --</option>
+        <option value="book">Book</option>
+        <option value="music">Music</option>
+        <option value="video">Video</option>
+        <option value="document">Document</option>
+        <option value="image">Image</option>
+      </select>
+
+      <div id="fileTypeDiv" style="display:none;">
+        <label for="filetype">File Type (Select one or more):</label>
+        <select id="filetype" multiple></select>
+      </div>
+
+      <label for="searchmode">Search Mode:</label>
+      <select id="searchmode" required>
+        <option value="normal">Normal Search</option>
+        <option value="openindex">Open Directory Search (intitle:"index of")</option>
+        <option value="wildcard">Wildcard Search (*.ext)</option>
+        <option value="siteonly">Site-Specific Search (only site:)</option>
+      </select>
+
+      <button type="submit">Search</button>
+    </form>
+  </div>
+
+  <script>
+    // File type options for each category
+    const fileTypeOptions = {
+      book: [
+        { value: "pdf", text: "PDF" },
+        { value: "epub", text: "EPUB" },
+        { value: "doc", text: "DOC" },
+        { value: "txt", text: "TXT" }
+      ],
+      music: [
+        { value: "mp3", text: "MP3" },
+        { value: "wav", text: "WAV" },
+        { value: "flac", text: "FLAC" }
+      ],
+      video: [
+        { value: "mp4", text: "MP4" },
+        { value: "avi", text: "AVI" },
+        { value: "mkv", text: "MKV" }
+      ],
+      document: [
+        { value: "pdf", text: "PDF" },
+        { value: "doc", text: "DOC" },
+        { value: "ppt", text: "PPT" },
+        { value: "xls", text: "XLS" }
+      ],
+      image: [
+        { value: "jpg", text: "JPG" },
+        { value: "png", text: "PNG" },
+        { value: "gif", text: "GIF" },
+        { value: "svg", text: "SVG" }
+      ]
+    };
+
+    const categorySelect = document.getElementById('category');
+    const fileTypeDiv = document.getElementById('fileTypeDiv');
+    const fileTypeSelect = document.getElementById('filetype');
+
+    categorySelect.addEventListener('change', function() {
+      const selected = this.value;
+      fileTypeSelect.innerHTML = '';
+      if (fileTypeOptions[selected]) {
+        fileTypeDiv.style.display = 'block';
+        fileTypeOptions[selected].forEach(opt => {
+          const option = document.createElement('option');
+          option.value = opt.value;
+          option.text = opt.text;
+          fileTypeSelect.appendChild(option);
+        });
+      } else {
+        fileTypeDiv.style.display = 'none';
+      }
+    });
+
+    document.getElementById('dorkForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const keyword = document.getElementById('keyword').value.trim();
+      const site = document.getElementById('site').value.trim();
+      const selectedFileTypes = Array.from(fileTypeSelect.selectedOptions).map(opt => opt.value);
+      const searchMode = document.getElementById('searchmode').value;
+
+      let dorkQuery = "";
+      let filetypePart = "";
+
+      // Filetype part for OR and wildcard
+      if (selectedFileTypes.length > 0) {
+        if (searchMode === "wildcard") {
+          filetypePart = selectedFileTypes.map(ft => `*.${ft}`).join(' OR ');
+        } else {
+          filetypePart = selectedFileTypes.map(ft => `filetype:${ft}`).join(' OR ');
+        }
+        // Enclose in parentheses if there are multiple filetypes
+        if (selectedFileTypes.length > 1) {
+             filetypePart = `(${filetypePart})`;
+        }
+      }
+
+
+      // Build query based on search mode
+      if (searchMode === "normal") {
+        dorkQuery = keyword;
+        if (site) dorkQuery += ' site:' + site;
+        if (filetypePart) dorkQuery += ' ' + filetypePart; // Added space
+      } else if (searchMode === "openindex") {
+        dorkQuery = `intitle:"index of" "${keyword}"`;
+        if (site) dorkQuery += ' site:' + site;
+        if (selectedFileTypes.length > 0) {
+          // For open directory, use extensions in (mp4|avi|mkv) format
+          const extPart = selectedFileTypes.map(ft => ft).join('|');
+          dorkQuery += ` (${extPart})`;
+        }
+      } else if (searchMode === "wildcard") {
+        dorkQuery = `"${keyword}"`; // Keyword should be quoted for wildcard
+        if (site) dorkQuery += ' site:' + site;
+        if (filetypePart) dorkQuery += ' ' + filetypePart; // Added space
+      } else if (searchMode === "siteonly") {
+        dorkQuery = keyword;
+        if (site) {
+            dorkQuery += ' site:' + site;
+        } else {
+            // If siteonly is selected but no site is provided, it's not a very useful search.
+            // You might want to alert the user or handle this case.
+            // For now, it will just search the keyword.
+        }
+      }
+
+      if (dorkQuery) { // Only search if query is not empty
+        const googleURL = 'https://www.google.com/search?q=' + encodeURIComponent(dorkQuery);
+        window.open(googleURL, '_blank');
+      } else {
+        alert("Please enter a keyword to search.");
+      }
+    });
+  </script>
+</body>
+</html>
